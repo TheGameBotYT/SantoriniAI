@@ -5,6 +5,7 @@ from kivy.clock import Clock
 from kivy.uix.button import Button
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.image import Image
+from kivy.properties import NumericProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 from SantoGame import SantoriniEnv
 
@@ -12,7 +13,7 @@ env_instance = SantoriniEnv(mode='play')  # Dummy
 
 
 class SantoGUI(FloatLayout):
-    #TODO: Show viable actions with a slight hue (non-player color)
+    # TODO: Show viable actions with a slight hue (non-player color)
 
     def __init__(self, env):
         super(SantoGUI, self).__init__()
@@ -23,6 +24,7 @@ class SantoGUI(FloatLayout):
             x_pos = self.x_dict[button_nr]
             y_pos = self.y_dict[button_nr]
             self.add_widget(SantoButton(env, id=str(button_nr), pos_hint={'x': x_pos, 'y': y_pos}))
+        self.run = Clock.schedule_interval(self.update, 2.0/60.0)
 
     def update(self, dt):
         """
@@ -78,17 +80,38 @@ class SantoButton(ButtonBehavior, Image):
                 pass  # TODO: Switch to victory/loss screen
 
 
+class CustomScreenManager(ScreenManager):
+    score = NumericProperty(0)
+
+
+class TitleScreen(Screen):
+    def __init__(self, name):
+        super(TitleScreen, self).__init__()
+        self.add_widget(Button(text='Click Here'))
+        self.name = name
+
+    def on_enter(self, *args):
+        self.__init__(name='TITLE')
+
+    def on_leave(self, *args):
+        self.clear_widgets()
+
+    def on_touch_down(self, touch):
+        self.manager.current = 'GAME'
+
+
+sm = CustomScreenManager()
+sm.add_widget(TitleScreen(name='TITLE'))
+game = SantoGUI(env_instance)
+game_screen = Screen(name='GAME')
+game_screen.add_widget(game)
+sm.add_widget(game_screen)
+
+
 class SantoGUIApp(App):
 
     def build(self):
-        self.screen_manager = ScreenManager()
-        self.game = SantoGUI(env_instance)
-        game_screen = Screen(name='Game')
-        game_screen.add_widget(self.game)
-        self.screen_manager.add_widget(game_screen)
-        gui = SantoGUI(env_instance)
-        Clock.schedule_interval(gui.update, 5.0 / 60.0)
-        return gui
+        return sm
 
 
 app = SantoGUIApp()
