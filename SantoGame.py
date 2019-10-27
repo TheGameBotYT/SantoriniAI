@@ -1,11 +1,11 @@
 import numpy as np
-# np.random.seed(4)
 
 
 class SantoriniEnv(object):
 
-    def __init__(self, opponent_agent=None):
+    def __init__(self, opponent_agent=None, mode='learn'):
         # TODO: Perhaps use reset() as an initial state setting
+        self.mode = mode
         self.num_builders = 1
         self.size = 3
         self.player_positions = {1: None, 2: None}
@@ -13,6 +13,11 @@ class SantoriniEnv(object):
             self.opponent_agent = self.dummy_opponent_agent
         else:
             self.opponent_agent = opponent_agent
+        self.action_dict = {0: (1, 1), 1: (0, 1), 2: (-1, 1),
+                            3: (1, 0), 4: (-1, 0),
+                            5: (1, -1), 6: (0, -1), 7: (-1, -1)}
+        self.inv_action_dict = {v: k for k, v in self.action_dict.items()}
+        self.coords, self.inv_coords = self.load_coord_dict()
         self.reset()
 
     def dummy_opponent_agent(self, state):
@@ -26,7 +31,6 @@ class SantoriniEnv(object):
         self.init_player_positions()
         self.phase = 'Move'
         self.current_player = np.random.choice([1, 2])
-        self.coords, self.inv_coords = self.load_coord_dict()
 
     def init_player_positions(self):
         # TODO: Think of something to either make this a start choice or make sure there is no overlap
@@ -59,6 +63,7 @@ class SantoriniEnv(object):
         return coord, inv_coord
 
     def step(self, action):
+        print('Action: ', action)
         viability, info = self.check_action_viability(action)
         print('-----------------')
         if not viability:
@@ -68,17 +73,17 @@ class SantoriniEnv(object):
             new_s = self.evolve_state_given_action(action)
             done, reward = self.end_condition()
             if done:
+                print('Reward: ', reward)
+                print('End state: ', self.state)
                 return new_s, reward, done
             while self.current_player == 2:
-                self.render()
                 a = self.opponent_agent(new_s)
                 new_s = self.evolve_state_given_action(a)
                 done, reward = self.end_condition()
                 if done:
                     print('Reward: ', reward)
                     print('End state: ', self.state)
-                break
-            self.state = new_s
+                    break
             return new_s, reward, done  # Possible Others?
 
     def render(self, mode='human', close=False):
@@ -146,8 +151,8 @@ class SantoriniEnv(object):
                 iii. Not build off the board
         :return: True or False depending on viable action
         """
+        target_coord = self.target_position_given_action(action)
         current_pos = self.get_position_coord()
-        target_coord = self.target_position_given_action(current_pos, action)
         try:
             target_pos = self.inv_coords[target_coord]
         except KeyError:
@@ -170,8 +175,20 @@ class SantoriniEnv(object):
         info = "Viable"
         return True, info
 
-    def target_position_given_action(self, current_pos, action):
+    def action_given_target_position(self, target_pos):
+        current_pos = self.get_position_coord()
         x, y = self.coords[current_pos]
+        x2, y2 = self.coords[target_pos]
+        delta = (x2-x, y2-y)
+        action = self.inv_action_dict[delta]
+        return action
+
+    def target_position_given_action(self, action):
+        current_pos = self.get_position_coord()
+        x, y = self.coords[current_pos]
+        delta_tuple = self.action_dict[action]
+        target_coord = (x + delta_tuple[0], y + delta_tuple[1])
+        """
         if action == 0:
             target_coord = (x + 1, y + 1)
         elif action == 1:
@@ -190,6 +207,7 @@ class SantoriniEnv(object):
             target_coord = (x - 1, y - 1)
         else:
             Warning('Hello')
+        """
         return target_coord
 
     def get_viable_actions(self):
@@ -209,7 +227,6 @@ class SantoriniEnv(object):
             viability, info = self.check_action_viability(action)
             if viability:
                 viable_actions.append(action)
-        print('Viable actions: ', viable_actions)
         return viable_actions
 
     def get_position_coord(self):
@@ -220,8 +237,8 @@ class SantoriniEnv(object):
         """
         :param action: tuple of (player, 'Builder'/'Building', X move, Y move)
         """
+        target_pos = self.inv_coords[self.target_position_given_action(action)]
         current_pos = self.get_position_coord()
-        target_pos = self.inv_coords[self.target_position_given_action(current_pos, action)]
         if self.phase == 'Move':  # Move
             current_state = 'Move' + str(current_pos)
             target_state = 'Move' + str(target_pos)
