@@ -17,6 +17,7 @@ class SantoriniEnv(object):
                             3: (1, 0), 4: (-1, 0),
                             5: (1, -1), 6: (0, -1), 7: (-1, -1)}
         self.inv_action_dict = {v: k for k, v in self.action_dict.items()}
+        print(self.inv_action_dict)
         self.coords, self.inv_coords = self.load_coord_dict()
         self.reset()
 
@@ -177,9 +178,11 @@ class SantoriniEnv(object):
 
     def action_given_target_position(self, target_pos):
         current_pos = self.get_position_coord()
+        print('Current position', current_pos)
         x, y = self.coords[current_pos]
         x2, y2 = self.coords[target_pos]
         delta = (x2-x, y2-y)
+        print(delta)
         action = self.inv_action_dict[delta]
         return action
 

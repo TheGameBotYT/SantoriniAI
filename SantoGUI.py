@@ -5,12 +5,12 @@ from kivy.clock import Clock
 from kivy.uix.button import Button
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.image import Image
-from kivy.properties import NumericProperty
+from kivy.properties import NumericProperty, BooleanProperty, StringProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 from SantoGame import SantoriniEnv
+import time
 
-env_instance = SantoriniEnv(mode='play')  # Dummy
-
+env_instance = SantoriniEnv(mode='play')
 
 class SantoGUI(FloatLayout):
     # TODO: Show viable actions with a slight hue (non-player color)
@@ -24,7 +24,7 @@ class SantoGUI(FloatLayout):
             x_pos = self.x_dict[button_nr]
             y_pos = self.y_dict[button_nr]
             self.add_widget(SantoButton(env, id=str(button_nr), pos_hint={'x': x_pos, 'y': y_pos}))
-        self.run = Clock.schedule_interval(self.update, 2.0/60.0)
+        self.run = Clock.schedule_interval(self.update, 2.0 / 60.0)
 
     def update(self, dt):
         """
@@ -38,6 +38,13 @@ class SantoGUI(FloatLayout):
         """
         self.paint_position_viability()
         self.paint_building_level()
+        if self.env.end_condition()[0]:
+            self.run.cancel()
+            if self.env.end_condition()[1] == -1:
+                self.parent.manager.winner = 'Victory'
+            elif self.env.end_condition()[0] == 1:
+                self.parent.manager.winner = 'Loss'
+            self.parent.manager.current = 'END'
 
     def paint_building_level(self):
         for button in self.children:
@@ -74,6 +81,7 @@ class SantoButton(ButtonBehavior, Image):
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             target_pos = int(self.id)
+            print('Target Position', target_pos)
             action = self.env.action_given_target_position(target_pos)
             _, _, done = self.env.step(action)
             if done:
@@ -81,17 +89,45 @@ class SantoButton(ButtonBehavior, Image):
 
 
 class CustomScreenManager(ScreenManager):
-    score = NumericProperty(0)
+    winner = StringProperty(True)
 
 
 class TitleScreen(Screen):
     def __init__(self, name):
         super(TitleScreen, self).__init__()
-        self.add_widget(Button(text='Click Here'))
         self.name = name
 
     def on_enter(self, *args):
-        self.__init__(name='TITLE')
+        self.add_widget(Button(text='Click Here'))
+
+    def on_leave(self, *args):
+        self.clear_widgets()
+
+    def on_touch_down(self, touch):
+        self.manager.current = 'GAME'
+
+
+class GameScreen(Screen):
+    def __init__(self, name):
+        super(GameScreen, self).__init__()
+        self.name = name
+
+    def on_enter(self, *args):
+        env_instance = SantoriniEnv(mode='play')
+        self.add_widget(SantoGUI(env_instance))
+
+    def on_leave(self, *args):
+        self.clear_widgets()
+
+
+class EndScreen(Screen):
+    def __init__(self, name):
+        super(EndScreen, self).__init__()
+        self.name = name
+
+    def on_enter(self, *args):
+        text = self.parent.winner
+        self.add_widget(Button(text=text))
 
     def on_leave(self, *args):
         self.clear_widgets()
@@ -102,11 +138,9 @@ class TitleScreen(Screen):
 
 sm = CustomScreenManager()
 sm.add_widget(TitleScreen(name='TITLE'))
-game = SantoGUI(env_instance)
-game_screen = Screen(name='GAME')
-game_screen.add_widget(game)
-sm.add_widget(game_screen)
-
+sm.add_widget(GameScreen(name='GAME'))
+sm.add_widget(EndScreen(name='END'))
+sm.current = 'TITLE'
 
 class SantoGUIApp(App):
 
