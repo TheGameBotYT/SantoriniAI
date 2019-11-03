@@ -11,12 +11,10 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from SantoGame import SantoriniEnv
 from kivy.core.window import Window
 Window.size = (600, 800)
-Window.clearcolor = (1, 1, 1, 1)
+# Window.clearcolor = (1, 1, 1, 1)
 import time
 
 class SantoGUI(FloatLayout):
-    # TODO: Don't crash when choosing a non-viable action
-    # TODO: Make a label above for the current player
 
     def __init__(self, env):
         super(SantoGUI, self).__init__()
@@ -27,8 +25,12 @@ class SantoGUI(FloatLayout):
             x_pos = self.x_dict[button_nr]
             y_pos = self.y_dict[button_nr]
             self.add_widget(SantoButton(env, id=str(button_nr), pos_hint={'x': x_pos, 'y': y_pos}))
-        self.add_widget(Label(id='CurrentPlayerLabel', pos_hint={'x': 0, 'y': 0.75},
-                               font_size=30))
+        self.add_widget(Label(id='CurrentPlayerLabel', pos_hint={'x': 0, 'y': 0.75}, size_hint=(0.5, 0.25),
+                               font_size=30, text='Current Player: ' + str(self.env.current_player)))
+        self.add_widget(Label(id='CurrentPhaseLabel', pos_hint={'x': 0.5, 'y': 0.75}, size_hint=(0.5, 0.25),
+                              font_size=30, text='Phase: ' + str(self.env.phase)))
+
+    def start(self):
         self.run = Clock.schedule_interval(self.update, 2.0 / 60.0)
 
     def update(self, dt):
@@ -43,22 +45,30 @@ class SantoGUI(FloatLayout):
         """
         self.paint_position_viability()
         self.paint_building_level()
+        self.update_labels()
         if self.env.end_condition()[0]:
             self.run.cancel()
             if self.env.end_condition()[1] == 1:
-                self.parent.manager.winner = 'Victory \n Click to play again!'
+                self.parent.manager.winner = 'Victory\nClick to play again!'
             elif self.env.end_condition()[1] == -1:
-                self.parent.manager.winner = 'Loss \n Click to play again!'
+                self.parent.manager.winner = 'Loss\nClick to play again!'
             self.parent.manager.current = 'END'
+
+    def update_labels(self):
+        for child_widget in self.children:
+            if 'Label' in child_widget.id:
+                if child_widget.id == 'CurrentPlayerLabel':
+                    child_widget.text = 'Current Player: ' + str(self.env.current_player)
+                elif child_widget.id == 'CurrentPhaseLabel':
+                    child_widget.text = 'Phase: ' + str(self.env.phase)
+
 
     def paint_building_level(self):
         for child_widget in self.children:
-            if child_widget.id != 'CurrentPlayerLabel':
+            if 'Label' not in child_widget.id:  # If not a label, it is a button
                 build_state_str = 'Build' + child_widget.id
                 image_str = 'Level' + str(self.env.state[build_state_str]) + '.png'
                 child_widget.source = image_str
-            else:
-                print(child_widget.text)
 
     def paint_position_viability(self):
         viable_actions = self.env.get_viable_actions()
@@ -90,11 +100,11 @@ class SantoButton(ButtonBehavior, Image):
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
             target_pos = int(self.id)
-            action = self.env.action_given_target_position(target_pos)
-            if action is None:
-                pass
+            if self.env.current_player == 1:
+                action = self.env.action_given_target_position(target_pos)
             else:
-                _, _, done = self.env.step(action)
+                action = None
+            _, _, done = self.env.step_play(action)
 
 
 class CustomScreenManager(ScreenManager):
@@ -117,13 +127,15 @@ class TitleScreen(Screen):
 
 
 class GameScreen(Screen):
-    text = StringProperty('')
-
-    def __init__(self, name):
+    def __init__(self, gui, name):
         super(GameScreen, self).__init__()
         self.name = name
+        self.gui = gui
 
     def on_enter(self, *args):
+        print('Hi')
+        self.gui.env.reset()
+        self.gui.start()
         self.add_widget(gui)
 
     def on_leave(self, *args):
@@ -145,14 +157,16 @@ class EndScreen(Screen):
     def on_touch_down(self, touch):
         self.manager.current = 'GAME'
 
-env_instance = SantoriniEnv(mode='play')
+
+env_instance = SantoriniEnv()
 gui = SantoGUI(env_instance)
 
 sm = CustomScreenManager()
 sm.add_widget(TitleScreen(name='TITLE'))
-sm.add_widget(GameScreen(name='GAME'))
+sm.add_widget(GameScreen(gui, name='GAME'))
 sm.add_widget(EndScreen(name='END'))
 sm.current = 'TITLE'
+
 
 class SantoGUIApp(App):
 

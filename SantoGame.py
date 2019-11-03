@@ -1,11 +1,9 @@
 import numpy as np
-
+import time
 
 class SantoriniEnv(object):
 
-    def __init__(self, opponent_agent=None, mode='learn'):
-        # TODO: Perhaps use reset() as an initial state setting
-        self.mode = mode
+    def __init__(self, opponent_agent=None):
         self.num_builders = 1
         self.size = 3
         self.player_positions = {1: None, 2: None}
@@ -33,7 +31,7 @@ class SantoriniEnv(object):
         self.current_player = np.random.choice([1, 2])
 
     def init_player_positions(self):
-        # TODO: Think of something to either make this a start choice or make sure there is no overlap
+        # TODO: Think of something to either make this a start choice
         # TODO: Should be choice 0 -> Place workers
         start_list = []
         for _ in range(0, self.num_builders):
@@ -63,9 +61,7 @@ class SantoriniEnv(object):
         return coord, inv_coord
 
     def step(self, action):
-        print('Action: ', action)
         viability, info = self.check_action_viability(action)
-        print('-----------------')
         if not viability:
             print('NO VIABILITY', info)
             return self.state, 0, False
@@ -85,6 +81,24 @@ class SantoriniEnv(object):
                     print('End state: ', self.state)
                     break
             return new_s, reward, done  # Possible Others?
+
+    def step_play(self, action):
+        if self.current_player == 1:
+            viability, info = self.check_action_viability(action)
+            if not viability:
+                print('NO VIABILITY', info)
+                return self.state, 0, False
+            else:
+                new_s = self.evolve_state_given_action(action)
+                done, reward = self.end_condition()
+        elif self.current_player == 2:
+            a = self.opponent_agent(self.state)
+            new_s = self.evolve_state_given_action(a)
+            done, reward = self.end_condition()
+        if done:
+            print('Reward: ', reward)
+            print('End state: ', self.state)
+        return new_s, reward, done
 
     def render(self, mode='human', close=False):
         """
