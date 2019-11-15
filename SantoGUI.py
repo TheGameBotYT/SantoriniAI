@@ -64,25 +64,32 @@ class SantoGUI(FloatLayout):
 
 
     def paint_building_level(self):
+        p1_button, p2_button = self.env.player_positions[1], self.env.player_positions[2]
         for child_widget in self.children:
             if 'Label' not in child_widget.id:  # If not a label, it is a button
                 build_state_str = 'Build' + child_widget.id
-                image_str = 'Level' + str(self.env.state[build_state_str]) + '.png'
+                image_str = 'level_' + str(self.env.state[build_state_str]) + '_'
+                if child_widget.id == str(p1_button):
+                    image_str += 'red_'
+                elif child_widget.id == str(p2_button):
+                    image_str += 'gray_'
+                else:
+                    image_str += 'empty_'
+                if child_widget.id in ['1', '3', '5', '7', '9']:
+                    image_str += 'dark'
+                else:
+                    image_str += 'light'
+                image_str += '.png'
                 child_widget.source = image_str
 
     def paint_position_viability(self):
         viable_actions = self.env.get_viable_actions()
         viable_coords = [self.env.target_position_given_action(a) for a in viable_actions]
         viable_buttons = [str(self.env.inv_coords[c]) for c in viable_coords]
-        p1_button, p2_button = self.env.player_positions[1], self.env.player_positions[2]
         for child_widget in self.children:
             if child_widget.id != 'CurrentPlayerLabel':
                 if child_widget.id in viable_buttons:
-                    child_widget.color = [0.5, 1, 0.5, 1]
-                elif child_widget.id == str(p1_button):
-                    child_widget.color = [1, 0.5, 0.5, 1]
-                elif child_widget.id == str(p2_button):
-                    child_widget.color = [0.5, 0.5, 0.5, 1]
+                    child_widget.color = [0.75, 1, 0.75, 1]
                 else:
                     child_widget.color = [1, 1, 1, 1]
 
@@ -102,9 +109,13 @@ class SantoButton(ButtonBehavior, Image):
             target_pos = int(self.id)
             if self.env.current_player == 1:
                 action = self.env.action_given_target_position(target_pos)
+                if action is None:
+                    pass
+                else:
+                    _, _, done = self.env.step_play(action)
             else:
                 action = None
-            _, _, done = self.env.step_play(action)
+                _, _, done = self.env.step_play(action)
 
 
 class CustomScreenManager(ScreenManager):
@@ -117,7 +128,7 @@ class TitleScreen(Screen):
         self.name = name
 
     def on_enter(self, *args):
-        self.add_widget(Button(text='Click To Play'))
+        self.add_widget(Button(text='Click To Play', font_size=50))
 
     def on_leave(self, *args):
         self.clear_widgets()
@@ -133,7 +144,6 @@ class GameScreen(Screen):
         self.gui = gui
 
     def on_enter(self, *args):
-        print('Hi')
         self.gui.env.reset()
         self.gui.start()
         self.add_widget(gui)
@@ -149,7 +159,7 @@ class EndScreen(Screen):
 
     def on_enter(self, *args):
         text = self.parent.winner
-        self.add_widget(Button(text=text))
+        self.add_widget(Button(text=text, font_size=50))
 
     def on_leave(self, *args):
         self.clear_widgets()
