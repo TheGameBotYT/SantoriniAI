@@ -43,7 +43,6 @@ class SantoGUI(FloatLayout):
         :param dt:
         :return:
         """
-        self.paint_position_viability()
         self.paint_building_level()
         self.update_labels()
         if self.env.end_condition()[0]:
@@ -64,6 +63,9 @@ class SantoGUI(FloatLayout):
 
 
     def paint_building_level(self):
+        viable_actions = self.env.get_viable_actions()
+        viable_coords = [self.env.target_position_given_action(a) for a in viable_actions]
+        viable_buttons = [str(self.env.inv_coords[c]) for c in viable_coords]
         p1_button, p2_button = self.env.player_positions[1], self.env.player_positions[2]
         for child_widget in self.children:
             if 'Label' not in child_widget.id:  # If not a label, it is a button
@@ -76,22 +78,15 @@ class SantoGUI(FloatLayout):
                 else:
                     image_str += 'empty_'
                 if child_widget.id in ['1', '3', '5', '7', '9']:
-                    image_str += 'dark'
+                    image_str += 'dark_'
                 else:
-                    image_str += 'light'
-                image_str += '.png'
-                child_widget.source = image_str
-
-    def paint_position_viability(self):
-        viable_actions = self.env.get_viable_actions()
-        viable_coords = [self.env.target_position_given_action(a) for a in viable_actions]
-        viable_buttons = [str(self.env.inv_coords[c]) for c in viable_coords]
-        for child_widget in self.children:
-            if child_widget.id != 'CurrentPlayerLabel':
+                    image_str += 'light_'
                 if child_widget.id in viable_buttons:
-                    child_widget.color = [0.75, 1, 0.75, 1]
+                    image_str += 'eligible'
                 else:
-                    child_widget.color = [1, 1, 1, 1]
+                    image_str += 'neutral'
+                image_str += '.PNG'
+                child_widget.source = image_str
 
 
 class SantoButton(ButtonBehavior, Image):
