@@ -1,5 +1,6 @@
 from collections import defaultdict
 import numpy as np
+import pandas as pd
 
 """
 class ReplayBuffer(object):
@@ -133,14 +134,17 @@ class QLearningAgent(object):
         self.set_qvalue(state, action, q_value)
 
     def get_qvalue(self, state, action):
-        print('qvalue', self._Q[state][action])
-        return self._Q[state][action]
+        # TODO: This can't be efficient
+        update_state = tuple(state.values())
+        return self._Q[update_state][action]
 
     def set_qvalue(self, state, action, value):
-        self._Q[state][action] = value
+        # TODO: This can't be efficient
+        update_state = tuple(state.values())
+        self._Q[update_state][action] = value
 
     def get_value(self, state):
-        possible_actions = self.get_legal_actions(state)
+        possible_actions = self.get_legal_actions()
         if len(possible_actions) == 0:
             return 0
 
@@ -149,7 +153,7 @@ class QLearningAgent(object):
         return value
 
     def get_best_action(self, state):
-        possible_actions = self.get_legal_actions(state)
+        possible_actions = self.get_legal_actions()
         if len(possible_actions) == 0:
             return None
 
@@ -159,7 +163,7 @@ class QLearningAgent(object):
         return best_action
 
     def take_choice(self, state):
-        possible_actions = self.get_legal_actions(state)
+        possible_actions = self.get_legal_actions()
         if len(possible_actions) == 0:
             return None
 
@@ -170,12 +174,15 @@ class QLearningAgent(object):
 
         return chosen_action
 
+    def output_to_pickle(self, filename):
+        Q_table = pd.DataFrame.from_dict(self._Q)
+        Q_table.to_pickle(filename)
+
 
 def play_and_train(env, agent, t_max=10**4):
     total_reward = 0
     s = env.reset()
     for t in range(t_max):
-        print(t)
         a = agent.take_choice(s)
         next_s, r, done = env.step(a)
         agent.update(s, a, r, next_s)

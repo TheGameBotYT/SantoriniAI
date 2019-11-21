@@ -29,6 +29,7 @@ class SantoriniEnv(object):
         self.init_player_positions()
         self.phase = 'Move'
         self.current_player = np.random.choice([1, 2])
+        return self.state
 
     def init_player_positions(self):
         # TODO: Think of something to either make this a start choice
@@ -69,16 +70,12 @@ class SantoriniEnv(object):
             new_s = self.evolve_state_given_action(action)
             done, reward = self.end_condition()
             if done:
-                print('Reward: ', reward)
-                print('End state: ', self.state)
                 return new_s, reward, done
             while self.current_player == 2:
                 a = self.opponent_agent(new_s)
                 new_s = self.evolve_state_given_action(a)
                 done, reward = self.end_condition()
                 if done:
-                    print('Reward: ', reward)
-                    print('End state: ', self.state)
                     break
             return new_s, reward, done  # Possible Others?
 
