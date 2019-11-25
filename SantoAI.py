@@ -1,6 +1,7 @@
 from collections import defaultdict
 import numpy as np
 import pandas as pd
+import time
 
 """
 class ReplayBuffer(object):
@@ -125,7 +126,8 @@ class QLearningAgent(object):
             self.gamma = gamma
             self.epsilon = epsilon
         else:
-            pass
+            self.get_legal_actions = get_legal_actions
+            self._Q = pd.read_pickle(filepath)
 
     def update(self, state, action, reward, next_state):
         q_value = (1-self.lr) * self.get_qvalue(state, action) + \
@@ -135,12 +137,14 @@ class QLearningAgent(object):
 
     def get_qvalue(self, state, action):
         # TODO: This can't be efficient
-        update_state = tuple(state.values())
+        update_state = tuple([state[k] for k in sorted(state)])
+        print(update_state)
+        print(sorted(state))
         return self._Q[update_state][action]
 
     def set_qvalue(self, state, action, value):
         # TODO: This can't be efficient
-        update_state = tuple(state.values())
+        update_state = tuple([state[k] for k in sorted(state)])
         self._Q[update_state][action] = value
 
     def get_value(self, state):
@@ -157,9 +161,17 @@ class QLearningAgent(object):
         if len(possible_actions) == 0:
             return None
 
-        q_values = [self.get_qvalue(state, action) for action in possible_actions]
-        ind = np.argmax(q_values)
-        best_action = possible_actions[ind]
+        try:
+            q_values = [self.get_qvalue(state, action) for action in possible_actions]
+            print(q_values)
+            if all(v == 0 for v in q_values):
+                best_action = np.random.choice(possible_actions)  # Else it will always pick first
+            else:
+                ind = np.argmax(q_values)
+                best_action = possible_actions[ind]
+        except KeyError:
+            print('Never seen before, trying random')
+            best_action = np.random.choice(possible_actions)
         return best_action
 
     def take_choice(self, state):
@@ -198,7 +210,7 @@ def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batc
     s = env.reset()
     for t in range(t_max):
         a = agent.take_choice(s)
-        next_s, r, done, _ = env.step(a)
+        next_s, r, done = env.step(a)
         agent.update(s, a, r, next_s)
 
         if replay is not None:
@@ -214,3 +226,7 @@ def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batc
             break
 
     return total_reward
+
+# TODO: Fix the table saving thing otherwise this will never work effectively, even when deep
+# TODO: Change state space to LocationCurrentPlayer, LocationOpponentPlayer, Build States, helps with the table and now
+# TODO: this trains player 2 to help player 1 win.

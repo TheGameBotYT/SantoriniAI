@@ -7,6 +7,9 @@ class SantoriniEnv(object):
         self.num_builders = 1
         self.size = 3
         self.player_positions = {1: None, 2: None}
+        self.phase = None
+        self.current_player = 0
+        self.state = {}
         if opponent_agent is None:
             self.opponent_agent = self.dummy_opponent_agent
         else:
@@ -14,6 +17,7 @@ class SantoriniEnv(object):
         self.action_dict = {0: (1, 1), 1: (0, 1), 2: (-1, 1),
                             3: (1, 0), 4: (-1, 0),
                             5: (1, -1), 6: (0, -1), 7: (-1, -1)}
+        self.phase_encode_dict = {'Move': 0, 'Build': 1}
         self.inv_action_dict = {v: k for k, v in self.action_dict.items()}
         self.coords, self.inv_coords = self.load_coord_dict()
         self.reset()
@@ -25,9 +29,9 @@ class SantoriniEnv(object):
         return action
 
     def reset(self):
+        self.phase = 'Move'
         self.state = self.init_state()
         self.init_player_positions()
-        self.phase = 'Move'
         self.current_player = np.random.choice([1, 2])
         return self.state
 
@@ -52,6 +56,7 @@ class SantoriniEnv(object):
             build_state = 'Build' + str(x)
             state[move_state] = 0
             state[build_state] = 0
+            state['Phase'] = self.phase_encode_dict[self.phase]
         return state
 
     def load_coord_dict(self):
@@ -72,7 +77,7 @@ class SantoriniEnv(object):
             if done:
                 return new_s, reward, done
             while self.current_player == 2:
-                a = self.opponent_agent(new_s)
+                a = self.opponent_agent.take_choice(new_s)
                 new_s = self.evolve_state_given_action(a)
                 done, reward = self.end_condition()
                 if done:
@@ -89,7 +94,8 @@ class SantoriniEnv(object):
                 new_s = self.evolve_state_given_action(action)
                 done, reward = self.end_condition()
         elif self.current_player == 2:
-            a = self.opponent_agent(self.state)
+            # TODO: Rework this so dummy opponent still works
+            a = self.opponent_agent.get_best_action(self.state)
             new_s = self.evolve_state_given_action(a)
             done, reward = self.end_condition()
         if done:
@@ -261,10 +267,12 @@ class SantoriniEnv(object):
             self.state[target_state] = self.current_player  # Stand on target position
             self.player_positions[self.current_player] = target_pos
             self.phase = 'Build'  # Change to other phase
+            self.state['Phase'] = self.phase_encode_dict['Build']
         elif self.phase == 'Build':  # Build
             target_state = 'Build' + str(target_pos)
             self.state[target_state] += 1
             self.phase = 'Move'  # Change to other phase
+            self.state['Phase'] = self.phase_encode_dict['Move']
             self.determine_next_player()
         return self.state
 

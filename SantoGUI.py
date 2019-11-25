@@ -11,6 +11,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from SantoGame import SantoriniEnv
 from kivy.core.window import Window
 Window.size = (600, 800)
+from SantoAI import QLearningAgent
 # Window.clearcolor = (1, 1, 1, 1)
 import time
 
@@ -162,8 +163,10 @@ class EndScreen(Screen):
     def on_touch_down(self, touch):
         self.manager.current = 'GAME'
 
-
 env_instance = SantoriniEnv()
+agent = QLearningAgent(lr=None, gamma=None, epsilon=None,
+                       get_legal_actions=env_instance.get_viable_actions, filepath='SantoQ2MRBexplfix.p')
+env_instance.opponent_agent = agent
 gui = SantoGUI(env_instance)
 
 sm = CustomScreenManager()
