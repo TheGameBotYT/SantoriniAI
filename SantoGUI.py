@@ -71,7 +71,7 @@ class SantoGUI(FloatLayout):
         for child_widget in self.children:
             if 'Label' not in child_widget.id:  # If not a label, it is a button
                 build_state_str = 'Build' + child_widget.id
-                image_str = 'level_' + str(self.env.state[build_state_str]) + '_'
+                image_str = 'level_' + str(self.env.state[self.env.state_index_dict[build_state_str]]) + '_'
                 if child_widget.id == str(p1_button):
                     image_str += 'red_'
                 elif child_widget.id == str(p2_button):

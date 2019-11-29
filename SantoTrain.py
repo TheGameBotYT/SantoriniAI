@@ -9,9 +9,9 @@ rb = ReplayBuffer(size=1000)
 
 env = SantoriniEnv()
 agent = QLearningAgent(lr=0.1, gamma=0.99, epsilon=1, get_legal_actions=env.get_viable_actions)
-env.opponent_agent = agent
+# env.opponent_agent = agent
 
-for i in range(2000000):
+for i in range(10000):
     if i % 1000 == 0:
         print(i)
     if i == 5*10**5:
@@ -20,10 +20,11 @@ for i in range(2000000):
         agent.epsilon = 0.2
     if i == 15*10**5:
         agent.epsilon = 0.1
-    play_and_train_with_replay(env, agent, replay=rb, t_max=10**4, replay_batch_size=4)
+    # play_and_train_with_replay(env, agent, replay=rb, t_max=10**4, replay_batch_size=32)
+    play_and_train(env, agent, t_max=10**4)
 
 start = time.time()
-agent.output_to_pickle('SantoQ2MRBexplfix.p')
+agent.output_to_pickle('Q20new.p')
 end = time.time()
 print('Time to output in seconds:', end-start)
 

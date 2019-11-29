@@ -1,6 +1,8 @@
 from collections import defaultdict
 import numpy as np
 import pandas as pd
+from copy import copy
+from sklearn.feature_extraction import DictVectorizer
 import time
 
 """
@@ -130,6 +132,7 @@ class QLearningAgent(object):
             self._Q = pd.read_pickle(filepath)
 
     def update(self, state, action, reward, next_state):
+        # print(state, action, reward, next_state)
         q_value = (1-self.lr) * self.get_qvalue(state, action) + \
             self.lr * (reward + self.gamma*self.get_value(next_state))
 
@@ -137,15 +140,12 @@ class QLearningAgent(object):
 
     def get_qvalue(self, state, action):
         # TODO: This can't be efficient
-        update_state = tuple([state[k] for k in sorted(state)])
-        print(update_state)
-        print(sorted(state))
-        return self._Q[update_state][action]
+        state_tuple = tuple(state)
+        return self._Q[state_tuple][action]
 
     def set_qvalue(self, state, action, value):
-        # TODO: This can't be efficient
-        update_state = tuple([state[k] for k in sorted(state)])
-        self._Q[update_state][action] = value
+        state_tuple = tuple(state)
+        self._Q[state_tuple][action] = value
 
     def get_value(self, state):
         possible_actions = self.get_legal_actions()
@@ -163,7 +163,6 @@ class QLearningAgent(object):
 
         try:
             q_values = [self.get_qvalue(state, action) for action in possible_actions]
-            print(q_values)
             if all(v == 0 for v in q_values):
                 best_action = np.random.choice(possible_actions)  # Else it will always pick first
             else:
@@ -187,18 +186,18 @@ class QLearningAgent(object):
         return chosen_action
 
     def output_to_pickle(self, filename):
-        Q_table = pd.DataFrame.from_dict(self._Q)
+        Q_table = pd.DataFrame.from_dict(self._Q, orient='index')
         Q_table.to_pickle(filename)
-
 
 def play_and_train(env, agent, t_max=10**4):
     total_reward = 0
-    s = env.reset()
+    s = copy(env.reset())
     for t in range(t_max):
         a = agent.take_choice(s)
         next_s, r, done = env.step(a)
+        # TODO: s == next_s here for some fucked up reason
         agent.update(s, a, r, next_s)
-        s = next_s
+        s = copy(next_s)
         total_reward += r
         if done:
             break
@@ -207,7 +206,7 @@ def play_and_train(env, agent, t_max=10**4):
 
 def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batch_size=32):
     total_reward = 0
-    s = env.reset()
+    s = copy(env.reset())
     for t in range(t_max):
         a = agent.take_choice(s)
         next_s, r, done = env.step(a)
@@ -220,7 +219,7 @@ def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batc
             for point in range(replay_batch_size):
                 agent.update(s_batch[point], a_batch[point], r_batch[point], next_s_batch[point])
 
-        s = next_s
+        s = copy(next_s)
         total_reward += r
         if done:
             break
@@ -230,3 +229,6 @@ def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batc
 # TODO: Fix the table saving thing otherwise this will never work effectively, even when deep
 # TODO: Change state space to LocationCurrentPlayer, LocationOpponentPlayer, Build States, helps with the table and now
 # TODO: this trains player 2 to help player 1 win.
+"""
+Attempted to fix second todo above but waiting for simulation ;)
+"""

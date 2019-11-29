@@ -1,6 +1,17 @@
 import numpy as np
 import time
 
+class DummyOpponent(object):
+
+    def __init__(self, get_viable_actions_func):
+        self.get_viable_actions = get_viable_actions_func
+
+    def take_choice(self, state=None):
+        viable_actions = self.get_viable_actions()
+        choice_int = np.random.choice(len(viable_actions))
+        action = viable_actions[choice_int]
+        return action
+
 class SantoriniEnv(object):
 
     def __init__(self, opponent_agent=None):
@@ -9,9 +20,10 @@ class SantoriniEnv(object):
         self.player_positions = {1: None, 2: None}
         self.phase = None
         self.current_player = 0
-        self.state = {}
+        self.state = []
+        self.state_index_dict = {'Phase': 0}
         if opponent_agent is None:
-            self.opponent_agent = self.dummy_opponent_agent
+            self.opponent_agent = DummyOpponent(self.get_viable_actions)
         else:
             self.opponent_agent = opponent_agent
         self.action_dict = {0: (1, 1), 1: (0, 1), 2: (-1, 1),
@@ -22,17 +34,11 @@ class SantoriniEnv(object):
         self.coords, self.inv_coords = self.load_coord_dict()
         self.reset()
 
-    def dummy_opponent_agent(self, state):
-        viable_actions = self.get_viable_actions()
-        choice_int = np.random.choice(len(viable_actions))
-        action = viable_actions[choice_int]
-        return action
-
     def reset(self):
         self.phase = 'Move'
         self.state = self.init_state()
-        self.init_player_positions()
         self.current_player = np.random.choice([1, 2])
+        self.init_player_positions()
         return self.state
 
     def init_player_positions(self):
@@ -45,18 +51,22 @@ class SantoriniEnv(object):
                 while ind in start_list:
                     ind = np.random.randint(self.size**2)
                 start_list.append(ind)
-                state_name = 'Move' + str(ind)
-                self.state[state_name] = player
                 self.player_positions[player] = ind
+        self.state[self.state_index_dict['SPos']] = self.player_positions[self.current_player]
+        self.state[self.state_index_dict['OPos']] = self.player_positions[self.determine_other_player()]
 
     def init_state(self):
-        state = {}
+        state = [0] * (1 + 2 + self.size**2)
+        self.state_index_dict['SPos'] = 1
+        self.state_index_dict['OPos'] = 2
         for x in range(self.size**2):
-            move_state = 'Move' + str(x)
+            # move_state = 'Move' + str(x)
             build_state = 'Build' + str(x)
-            state[move_state] = 0
-            state[build_state] = 0
-            state['Phase'] = self.phase_encode_dict[self.phase]
+            # self.state_index_dict[move_state] = x + 1
+            self.state_index_dict[build_state] = x + 3
+            # state[self.state_index_dict[move_state]] = 0
+            state[self.state_index_dict[build_state]] = 0
+            state[self.state_index_dict['Phase']] = self.phase_encode_dict[self.phase]
         return state
 
     def load_coord_dict(self):
@@ -67,22 +77,19 @@ class SantoriniEnv(object):
         return coord, inv_coord
 
     def step(self, action):
-        viability, info = self.check_action_viability(action)
-        if not viability:
-            print('NO VIABILITY', info)
-            return self.state, 0, False
-        else:
-            new_s = self.evolve_state_given_action(action)
+        # print('Player 1?', self.current_player)
+        self.evolve_state_given_action(action)
+        done, reward = self.end_condition()
+        if done:
+            return self.state, reward, done
+        while self.current_player == 2:
+            # print('Player 2?', self.current_player)
+            a = self.opponent_agent.take_choice(self.state)
+            self.evolve_state_given_action(a)
             done, reward = self.end_condition()
             if done:
-                return new_s, reward, done
-            while self.current_player == 2:
-                a = self.opponent_agent.take_choice(new_s)
-                new_s = self.evolve_state_given_action(a)
-                done, reward = self.end_condition()
-                if done:
-                    break
-            return new_s, reward, done  # Possible Others?
+                break
+        return self.state, reward, done  # Possible Others?
 
     def step_play(self, action):
         if self.current_player == 1:
@@ -116,10 +123,10 @@ class SantoriniEnv(object):
             for x in range(self.size):
                 buildings += '  '
                 build_name = str('Build') + str(x+y*3)
-                buildings += str(self.state[build_name])
+                buildings += str(self.state[self.state_index_dict[build_name]])
                 builders += '  '
                 move_name = str('Move') + str(x + y*3)
-                builders += str(self.state[move_name])
+                builders += str(self.state[self.state_index_dict[move_name]])
             buildings += '\n'
             builders += '\n'
         print(buildings)
@@ -130,14 +137,19 @@ class SantoriniEnv(object):
         Game ends when player places
         :return:
         """
-        build_states = [(k, v) for k, v in self.state.items() if 'Build' in k]
-        for (k, v) in build_states:
-            if v == 3:
-                state_name = 'Move' + k.lstrip('Build')
-                if self.state[state_name] == 1:
-                    return True, 1
-                elif self.state[state_name] == 2:
-                    return True, -1
+        # TODO: More efficient to turn around,
+        # Rather than, check each gridpoint if it is build3, then check player pos
+        # Check player pos, then check if 3
+        build_tups = [(k, v) for k, v in self.state_index_dict.items() if 'Build' in k]
+        for k, v in build_tups:
+            if self.state[v] == 3:
+                state_name = k.lstrip('Build')
+                if self.state[self.state_index_dict['SPos']] == int(state_name):
+                    if self.current_player == 1:
+                        return True, 1
+                    elif self.current_player == 2:
+                        return True, -1
+        # TODO: Thoroughly check new implementation below:
         if len(self.get_viable_actions()) == 0:
             if self.current_player == 1:
                 return True, -1
@@ -176,17 +188,16 @@ class SantoriniEnv(object):
             info = "Out of bounds, coord does not exist"
             return False, info
         state_name = 'Build' + str(target_pos)
-        if self.state[state_name] == 4:
+        if self.state[self.state_index_dict[state_name]] == 4:
             info = "Dome at target position"
             return False, info
-        state_name = 'Move' + str(target_pos)
-        if self.state[state_name] > 0:
+        if target_pos == self.player_positions[self.determine_other_player()]:
             info = "Builder there"
             return False, info
         if self.phase == 'Move':
             target_state = 'Build' + str(target_pos)
             self_state = 'Build' + str(current_pos)
-            if self.state[target_state] > (self.state[self_state] + 1):
+            if self.state[self.state_index_dict[target_state]] > (self.state[self.state_index_dict[self_state]] + 1):
                 info = "Too high to climb"
                 return False, info
         info = "Viable"
@@ -255,30 +266,33 @@ class SantoriniEnv(object):
         return current_pos
 
     def evolve_state_given_action(self, action):
-        """
-        :param action: tuple of (player, 'Builder'/'Building', X move, Y move)
-        """
         target_pos = self.inv_coords[self.target_position_given_action(action)]
         current_pos = self.get_position_coord()
         if self.phase == 'Move':  # Move
-            current_state = 'Move' + str(current_pos)
-            target_state = 'Move' + str(target_pos)
-            self.state[current_state] = 0  # Remove from current position
-            self.state[target_state] = self.current_player  # Stand on target position
+            # current_state = 'Move' + str(current_pos)
+            # target_state = 'Move' + str(target_pos)
+            # self.state[self.state_index_dict[current_state]] = 0  # Remove from current position
+            # self.state[self.state_index_dict[target_state]] = self.current_player  # Stand on target position
             self.player_positions[self.current_player] = target_pos
+            self.state[self.state_index_dict['SPos']] = target_pos
             self.phase = 'Build'  # Change to other phase
-            self.state['Phase'] = self.phase_encode_dict['Build']
+            self.state[self.state_index_dict['Phase']] = self.phase_encode_dict['Build']
         elif self.phase == 'Build':  # Build
             target_state = 'Build' + str(target_pos)
-            self.state[target_state] += 1
+            self.state[self.state_index_dict[target_state]] += 1
             self.phase = 'Move'  # Change to other phase
-            self.state['Phase'] = self.phase_encode_dict['Move']
-            self.determine_next_player()
+            self.state[self.state_index_dict['Phase']] = self.phase_encode_dict['Move']
+            self.current_player = self.determine_other_player()
+            # Switch self, opponent when new player is determined
+            spos_ind = self.state_index_dict['SPos']
+            opos_ind = self.state_index_dict['OPos']
+            self.state[spos_ind], self.state[opos_ind] = self.state[opos_ind], self.state[spos_ind]
         return self.state
 
-    def determine_next_player(self):
+    def determine_other_player(self):
         if self.current_player == 1:
-            self.current_player = 2
+            opp = 2
         elif self.current_player == 2:
-            self.current_player = 1
+            opp = 1
+        return opp
 
