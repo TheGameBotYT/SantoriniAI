@@ -1,8 +1,7 @@
 from collections import defaultdict
 import numpy as np
 import pandas as pd
-from copy import copy
-from sklearn.feature_extraction import DictVectorizer
+from copy import copy, deepcopy
 import time
 
 """
@@ -60,19 +59,15 @@ class ReplayBuffer(object):
         self._storage = deque([])
         self._maxsize = size
 
-        # OPTIONAL: YOUR CODE
-
     def __len__(self):
         return len(self._storage)
 
-    def add(self, obs_t, action, reward, obs_tp1, done):
+    def add(self, s, action, reward, next_s, done):
         '''
         Make sure, _storage will not exceed _maxsize.
         Make sure, FIFO rule is being followed: the oldest examples has to be removed earlier
         '''
-        data = (obs_t, action, reward, obs_tp1, done)
-
-        # add data to storage
+        data = deepcopy((s, action, reward, next_s, done))
         self._storage.append(data)
         if self.__len__() > self._maxsize:
             self._storage.popleft()
@@ -148,12 +143,17 @@ class QLearningAgent(object):
         self._Q[state_tuple][action] = value
 
     def get_value(self, state):
+        # TODO: Theory is that self.get_legal_actions gives the same output even though it should
+        # TODO: Give different outputs per state (state, next_state)
         possible_actions = self.get_legal_actions()
         if len(possible_actions) == 0:
             return 0
 
+        print(state)
         q_values = [self.get_qvalue(state, action) for action in possible_actions]
         value = np.max(q_values)
+        print(q_values)
+        print('Max a Q(S1, A)', value)
         return value
 
     def get_best_action(self, state):
@@ -189,13 +189,13 @@ class QLearningAgent(object):
         Q_table = pd.DataFrame.from_dict(self._Q, orient='index')
         Q_table.to_pickle(filename)
 
+
 def play_and_train(env, agent, t_max=10**4):
     total_reward = 0
     s = copy(env.reset())
     for t in range(t_max):
         a = agent.take_choice(s)
         next_s, r, done = env.step(a)
-        # TODO: s == next_s here for some fucked up reason
         agent.update(s, a, r, next_s)
         s = copy(next_s)
         total_reward += r
@@ -206,7 +206,7 @@ def play_and_train(env, agent, t_max=10**4):
 
 def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batch_size=32):
     total_reward = 0
-    s = copy(env.reset())
+    s = deepcopy(env.reset())
     for t in range(t_max):
         a = agent.take_choice(s)
         next_s, r, done = env.step(a)
@@ -216,10 +216,11 @@ def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batc
             replay.add(s, a, r, next_s, done)
 
             s_batch, a_batch, r_batch, next_s_batch, done_batch = replay.sample(replay_batch_size)
+
             for point in range(replay_batch_size):
                 agent.update(s_batch[point], a_batch[point], r_batch[point], next_s_batch[point])
 
-        s = copy(next_s)
+        s = deepcopy(next_s)
         total_reward += r
         if done:
             break

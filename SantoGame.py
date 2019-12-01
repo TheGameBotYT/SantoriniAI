@@ -1,6 +1,7 @@
 import numpy as np
 import time
 
+
 class DummyOpponent(object):
 
     def __init__(self, get_viable_actions_func):
@@ -11,6 +12,7 @@ class DummyOpponent(object):
         choice_int = np.random.choice(len(viable_actions))
         action = viable_actions[choice_int]
         return action
+
 
 class SantoriniEnv(object):
 
@@ -267,7 +269,7 @@ class SantoriniEnv(object):
 
     def evolve_state_given_action(self, action):
         target_pos = self.inv_coords[self.target_position_given_action(action)]
-        current_pos = self.get_position_coord()
+        # current_pos = self.get_position_coord()
         if self.phase == 'Move':  # Move
             # current_state = 'Move' + str(current_pos)
             # target_state = 'Move' + str(target_pos)
