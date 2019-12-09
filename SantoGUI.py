@@ -20,9 +20,13 @@ class SantoGUI(FloatLayout):
     def __init__(self, env):
         super(SantoGUI, self).__init__()
         self.env = env
-        self.x_dict = {0: 0, 1: 1/3, 2: 2/3, 3: 0, 4: 1/3, 5: 2/3, 6: 0, 7: 1/3, 8: 2/3}
-        self.y_dict = {0: 0, 1: 0, 2: 0, 3: 0.25, 4: 0.25, 5: 0.25, 6: 0.5, 7: 0.5, 8: 0.5}
-        for button_nr in range(9):
+        if (self.env.size == 9) | (self.env.size == 6):
+            self.x_dict = {0: 0, 1: 1/3, 2: 2/3, 3: 0, 4: 1/3, 5: 2/3, 6: 0, 7: 1/3, 8: 2/3}
+            self.y_dict = {0: 0, 1: 0, 2: 0, 3: 0.25, 4: 0.25, 5: 0.25, 6: 0.5, 7: 0.5, 8: 0.5}
+        else:
+            self.x_dict = {0: 0, 1: 1/3, 2: 0, 3: 1/3}
+            self.y_dict = {0: 0, 1: 0, 2: 0.25, 3: 0.25}
+        for button_nr in range(self.env.size):
             x_pos = self.x_dict[button_nr]
             y_pos = self.y_dict[button_nr]
             self.add_widget(SantoButton(env, id=str(button_nr), pos_hint={'x': x_pos, 'y': y_pos}))
@@ -64,8 +68,8 @@ class SantoGUI(FloatLayout):
 
 
     def paint_building_level(self):
-        viable_actions = self.env.get_viable_actions()
-        viable_coords = [self.env.target_position_given_action(a) for a in viable_actions]
+        viable_actions = self.env.get_viable_actions(self.env.state)
+        viable_coords = [self.env.target_position_given_action(a, self.env.state) for a in viable_actions]
         viable_buttons = [str(self.env.inv_coords[c]) for c in viable_coords]
         p1_button, p2_button = self.env.player_positions[1], self.env.player_positions[2]
         for child_widget in self.children:
@@ -165,8 +169,8 @@ class EndScreen(Screen):
 
 env_instance = SantoriniEnv()
 agent = QLearningAgent(lr=None, gamma=None, epsilon=None,
-                       get_legal_actions=env_instance.get_viable_actions, filepath='SantoQ2MRBexplfix.p')
-env_instance.opponent_agent = agent
+                       get_legal_actions=env_instance.get_viable_actions, filepath='Q2000krb16X.p')
+# env_instance.opponent_agent = agent
 gui = SantoGUI(env_instance)
 
 sm = CustomScreenManager()

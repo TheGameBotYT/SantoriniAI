@@ -2,6 +2,7 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 from copy import copy, deepcopy
+import pickle
 import time
 
 """
@@ -115,54 +116,49 @@ class QLearningAgent(object):
 
     def __init__(self, lr, gamma, epsilon, get_legal_actions, filepath=None):
         # TODO: Implement this to continue from a saved Q-file of iterations
+        self.lr = lr
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.get_legal_actions = get_legal_actions
         if filepath is None:
             self._N = defaultdict(lambda: defaultdict(lambda: 0))
             self._Q = defaultdict(lambda: defaultdict(lambda: 0))
-            self.get_legal_actions = get_legal_actions
-            self.lr = lr
-            self.gamma = gamma
-            self.epsilon = epsilon
         else:
-            self.get_legal_actions = get_legal_actions
+            # self._Q = defaultdict(lambda: defaultdict(lambda: 0), pd.read_pickle(filepath).to_dict('index'))
             self._Q = pd.read_pickle(filepath)
 
     def update(self, state, action, reward, next_state):
-        # print(state, action, reward, next_state)
         q_value = (1-self.lr) * self.get_qvalue(state, action) + \
             self.lr * (reward + self.gamma*self.get_value(next_state))
 
         self.set_qvalue(state, action, q_value)
 
     def get_qvalue(self, state, action):
-        # TODO: This can't be efficient
-        state_tuple = tuple(state)
-        return self._Q[state_tuple][action]
+        # TODO: DataFrame object requires .loc to access this while playing, make it less hacky
+        # TODO: Should be fixed since we're using pickle
+        return self._Q.loc[tuple(state)][action]
 
     def set_qvalue(self, state, action, value):
-        state_tuple = tuple(state)
-        self._Q[state_tuple][action] = value
+        self._Q[tuple(state)][action] = value
 
     def get_value(self, state):
-        # TODO: Theory is that self.get_legal_actions gives the same output even though it should
-        # TODO: Give different outputs per state (state, next_state)
-        possible_actions = self.get_legal_actions()
+        possible_actions = self.get_legal_actions(state)
         if len(possible_actions) == 0:
             return 0
 
-        print(state)
         q_values = [self.get_qvalue(state, action) for action in possible_actions]
         value = np.max(q_values)
-        print(q_values)
-        print('Max a Q(S1, A)', value)
         return value
 
     def get_best_action(self, state):
-        possible_actions = self.get_legal_actions()
+        possible_actions = self.get_legal_actions(state)
         if len(possible_actions) == 0:
             return None
 
         try:
             q_values = [self.get_qvalue(state, action) for action in possible_actions]
+            print(state)
+            print(q_values)
             if all(v == 0 for v in q_values):
                 best_action = np.random.choice(possible_actions)  # Else it will always pick first
             else:
@@ -174,7 +170,7 @@ class QLearningAgent(object):
         return best_action
 
     def take_choice(self, state):
-        possible_actions = self.get_legal_actions()
+        possible_actions = self.get_legal_actions(state)
         if len(possible_actions) == 0:
             return None
 
@@ -185,9 +181,9 @@ class QLearningAgent(object):
 
         return chosen_action
 
-    def output_to_pickle(self, filename):
-        Q_table = pd.DataFrame.from_dict(self._Q, orient='index')
-        Q_table.to_pickle(filename)
+    def output_to_pickle(self, file_name):
+        Q_table = pd.DataFrame.from_dict(self._Q, orient='index', dtype=np.float16)
+        Q_table.to_pickle(file_name)
 
 
 def play_and_train(env, agent, t_max=10**4):
@@ -228,8 +224,6 @@ def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batc
     return total_reward
 
 # TODO: Fix the table saving thing otherwise this will never work effectively, even when deep
-# TODO: Change state space to LocationCurrentPlayer, LocationOpponentPlayer, Build States, helps with the table and now
-# TODO: this trains player 2 to help player 1 win.
 """
 Attempted to fix second todo above but waiting for simulation ;)
 """
