@@ -24,8 +24,8 @@ class SantoGUI(FloatLayout):
             self.x_dict = {0: 0, 1: 1/3, 2: 2/3, 3: 0, 4: 1/3, 5: 2/3, 6: 0, 7: 1/3, 8: 2/3}
             self.y_dict = {0: 0, 1: 0, 2: 0, 3: 0.25, 4: 0.25, 5: 0.25, 6: 0.5, 7: 0.5, 8: 0.5}
         else:
-            self.x_dict = {0: 0, 1: 1/3, 2: 0, 3: 1/3}
-            self.y_dict = {0: 0, 1: 0, 2: 0.25, 3: 0.25}
+            self.x_dict = {0: 0, 1: 1/2, 2: 0, 3: 1/2}
+            self.y_dict = {0: 0, 1: 0, 2: 1/3, 3: 1/3}
         for button_nr in range(self.env.size):
             x_pos = self.x_dict[button_nr]
             y_pos = self.y_dict[button_nr]
@@ -51,6 +51,7 @@ class SantoGUI(FloatLayout):
         self.paint_building_level()
         self.update_labels()
         if self.env.end_condition()[0]:
+            time.sleep(1)
             self.run.cancel()
             if self.env.end_condition()[1] == 1:
                 self.parent.manager.winner = 'Victory\nClick to play again!'
@@ -101,7 +102,10 @@ class SantoButton(ButtonBehavior, Image):
         super(SantoButton, self).__init__(**kwargs)
         self.font_size = 30
         self.color = [1, 1, 1, 1]
-        self.size_hint = (1/3, 0.25)
+        if self.env.size == 9:
+            self.size_hint = (1/3, 0.25)
+        elif self.env.size == 4:
+            self.size_hint = (1/2, 3/8)
         self.source = 'Level0.png'
 
     def on_touch_down(self, touch):
@@ -168,9 +172,9 @@ class EndScreen(Screen):
         self.manager.current = 'GAME'
 
 env_instance = SantoriniEnv()
-agent = QLearningAgent(lr=None, gamma=None, epsilon=None,
-                       get_legal_actions=env_instance.get_viable_actions, filepath='Q2000krb16X.p')
-# env_instance.opponent_agent = agent
+agent = QLearningAgent(lr=None, gamma=None, epsilon=0,
+                       get_legal_actions=env_instance.get_viable_actions, filepath='QDerpo500krb16.p')
+env_instance.opponent_agent = agent
 gui = SantoGUI(env_instance)
 
 sm = CustomScreenManager()

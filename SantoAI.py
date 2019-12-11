@@ -157,8 +157,6 @@ class QLearningAgent(object):
 
         try:
             q_values = [self.get_qvalue(state, action) for action in possible_actions]
-            print(state)
-            print(q_values)
             if all(v == 0 for v in q_values):
                 best_action = np.random.choice(possible_actions)  # Else it will always pick first
             else:

@@ -8,7 +8,7 @@ class DummyOpponent(object):
         self.get_viable_actions = get_viable_actions_func
 
     def take_choice(self, state=None):
-        viable_actions = self.get_viable_actions()
+        viable_actions = self.get_viable_actions(state)
         choice_int = np.random.choice(len(viable_actions))
         action = viable_actions[choice_int]
         return action
@@ -78,7 +78,7 @@ class SantoriniEnv(object):
                      6: (2, 0), 7: (2, 1), 8: (2, 2)}
         elif self.size == 4:
             coord = {0: (0, 0), 1: (0, 1),
-                     2: (1, 0), 3: (2, 2)}
+                     2: (1, 0), 3: (1, 1)}
         elif self.size == 6:
             coord = {0: (0, 0), 1: (0, 1), 2: (0, 2),
                      3: (1, 0), 4: (1, 1), 5: (1, 2)}
@@ -112,12 +112,13 @@ class SantoriniEnv(object):
                 done, reward = self.end_condition()
         elif self.current_player == 2:
             # TODO: Rework this so dummy opponent still works
-            a = self.opponent_agent.get_best_action(self.state)
+            a = self.opponent_agent.take_choice(self.state)
             new_s = self.evolve_state_given_action(a)
             done, reward = self.end_condition()
         if done:
             print('Reward: ', reward)
             print('End state: ', self.state)
+            print('New_s', new_s)
         return new_s, reward, done
 
     def render(self, mode='human', close=False):
