@@ -18,7 +18,7 @@ class SantoriniEnv(object):
 
     def __init__(self, opponent_agent=None):
         self.num_builders = 1
-        self.size = 4  # Number of tiles
+        self.size = 6  # Number of tiles
         self.player_positions = {1: None, 2: None}
         self.phase = None
         self.current_player = 0
@@ -80,8 +80,9 @@ class SantoriniEnv(object):
             coord = {0: (0, 0), 1: (0, 1),
                      2: (1, 0), 3: (1, 1)}
         elif self.size == 6:
-            coord = {0: (0, 0), 1: (0, 1), 2: (0, 2),
-                     3: (1, 0), 4: (1, 1), 5: (1, 2)}
+            coord = {0: (0, 0), 1: (0, 1),
+                     2: (1, 0), 3: (1, 1),
+                     4: (2, 0), 5: (2, 1)}
         inv_coord = {v: k for k, v in coord.items()}
         return coord, inv_coord
 
@@ -122,6 +123,7 @@ class SantoriniEnv(object):
         return new_s, reward, done
 
     def render(self, mode='human', close=False):
+        # TODO: DEPRECATED
         """
         Prints the game state in a 'nice' ASCII format
         :param mode:

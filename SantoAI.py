@@ -2,6 +2,8 @@ from collections import defaultdict
 import numpy as np
 import pandas as pd
 from copy import copy, deepcopy
+# from LinearQNetwork import LinearDeepQNetwork
+# import torch as T
 import pickle
 import time
 
@@ -157,6 +159,7 @@ class QLearningAgent(object):
 
         try:
             q_values = [self.get_qvalue(state, action) for action in possible_actions]
+            print(q_values)
             if all(v == 0 for v in q_values):
                 best_action = np.random.choice(possible_actions)  # Else it will always pick first
             else:
@@ -225,3 +228,85 @@ def play_and_train_with_replay(env, agent, replay=None, t_max=10**4, replay_batc
 """
 Attempted to fix second todo above but waiting for simulation ;)
 """
+
+class DeepQLearningAgent():
+
+    def __init__(self, lr, gamma, epsilon, get_legal_actions, n_actions, input_dims,
+                 mem_size, batch_size, eps_min=0.01, eps_dec=5e-7,
+                 replace=1000, algo=None, env_name=None, chkpt_dir='tmp/dqn'):
+
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.lr = lr
+        self.n_actions = n_actions
+        self.input_dims = input_dims
+        self.batch_size = batch_size
+        self.eps_min = eps_min
+        self.eps_dec = eps_dec
+        self.replace_target_cnt = replace
+        self.algo = algo
+        self.env_name = env_name
+        self.chkpt_dir = chkpt_dir
+        self.action_space = [i for i in range(self.n_actions)]
+        self.learn_step_counter = 0
+
+        self.memory = ReplayBuffer(mem_size, input_dims, n_actions) # TODO: Choose Phil or Coursera style
+
+        self.q_eval = LinearDeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims,
+                                         filename='Santo_DQN_q_eval', checkpoint_dir='models/')
+
+        self.q_next = LinearDeepQNetwork(self.lr, self.n_actions, input_dims=self.input_dims,
+                                         filename='Santo_DQN_q_next', checkpoint_dir='models/')
+
+    def choose_action(self, state):
+        # TODO: Re-evaluate using get_legal_actions
+        if np.random.uniform() > self.epsilon:
+            state_tensor = T.tensor([state], dtype=T.float).to(self.q_eval.device)
+            actions = self.q_eval.forward(state_tensor)
+            action = T.argmax(actions).item()
+        else:
+            action = np.random.choice(self.action_space)
+
+        return action
+
+    def store_transition(self):
+        pass
+
+    def sample_memory(self):
+        pass
+
+    def replace_target_network(self):
+        if self.learn_step_counter & self.replace_target_cnt == 0:
+            self.q_next.load_state_dict(self.q_eval.state_dict())
+
+    def decrement_epsilon(self):
+        self.epsilon = self.epsilon - self.eps_dec if self.epsilon > self.eps_min else self.eps_min
+
+    def save_models(self):
+        self.q_eval.save_checkpoint()
+        self.q_next.save_checkpoint()
+
+    def learn(self):
+        if self.memory.mem_cntr < self.batch_size:
+            return
+
+        self.q_eval.optimizer.zero_grad()
+
+        self.replace_target_network()
+
+        states, actions, rewards, states_, dones = self.sample_memory()
+
+        indices = np.arange(self.batch_size)
+        q_pred = self.q_eval.forward(states)[indices, actions]
+        q_next = self.q_next.forward(states_).max(dim=1)[0]
+
+        q_next[dones] = 0.0
+        q_target = rewards + self.gamma*q_next
+
+        loss = self.q_eval.loss(q_target, q_pred).to(self.q_eval.device)
+        loss.backward()
+        self.q_eval.optimizer.step()
+        self.learn_step_counter += 1
+
+        self.decrement_epsilon()
+

@@ -10,7 +10,7 @@ from kivy.properties import NumericProperty, BooleanProperty, StringProperty
 from kivy.uix.screenmanager import ScreenManager, Screen
 from SantoGame import SantoriniEnv
 from kivy.core.window import Window
-Window.size = (600, 800)
+Window.size = (500, 900)
 from SantoAI import QLearningAgent
 # Window.clearcolor = (1, 1, 1, 1)
 import time
@@ -20,10 +20,13 @@ class SantoGUI(FloatLayout):
     def __init__(self, env):
         super(SantoGUI, self).__init__()
         self.env = env
-        if (self.env.size == 9) | (self.env.size == 6):
+        if self.env.size == 9:
             self.x_dict = {0: 0, 1: 1/3, 2: 2/3, 3: 0, 4: 1/3, 5: 2/3, 6: 0, 7: 1/3, 8: 2/3}
             self.y_dict = {0: 0, 1: 0, 2: 0, 3: 0.25, 4: 0.25, 5: 0.25, 6: 0.5, 7: 0.5, 8: 0.5}
-        else:
+        elif self.env.size == 6:
+            self.x_dict = {0: 0, 1: 1/2, 2: 0, 3: 1/2, 4: 0, 5: 1/2}
+            self.y_dict = {0: 0, 1: 0, 2: 1/4, 3: 1/4, 4: 2/4, 5: 2/4}
+        elif self.env.size == 4:
             self.x_dict = {0: 0, 1: 1/2, 2: 0, 3: 1/2}
             self.y_dict = {0: 0, 1: 0, 2: 1/3, 3: 1/3}
         for button_nr in range(self.env.size):
@@ -104,6 +107,8 @@ class SantoButton(ButtonBehavior, Image):
         self.color = [1, 1, 1, 1]
         if self.env.size == 9:
             self.size_hint = (1/3, 0.25)
+        elif self.env.size == 6:
+            self.size_hint = (1/2, 1/3)
         elif self.env.size == 4:
             self.size_hint = (1/2, 3/8)
         self.source = 'Level0.png'
@@ -173,7 +178,7 @@ class EndScreen(Screen):
 
 env_instance = SantoriniEnv()
 agent = QLearningAgent(lr=None, gamma=None, epsilon=0,
-                       get_legal_actions=env_instance.get_viable_actions, filepath='QDerpo500krb16.p')
+                       get_legal_actions=env_instance.get_viable_actions, filepath='Santo6Q5Mrb16.p')
 env_instance.opponent_agent = agent
 gui = SantoGUI(env_instance)
 
